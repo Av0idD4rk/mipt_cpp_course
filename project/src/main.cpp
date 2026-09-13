@@ -1,58 +1,129 @@
-// Каркас агента: читает журнал событий построчно и считает строки.
-//
-// Это заготовка занятия 1.1, а не решение. Детектов она не ищет — их вы
-// добавите здесь же, в отмеченном месте ниже. Формат строки детекта, список
-// признаков и правило про их порядок заданы в постановке занятия: по ним
-// сравниваются эталоны.
-//
-// Весь код лежит в main, и на этом занятии так и надо: функции появятся
-// на занятии 1.2, ссылки — на 1.3. Разбор аргументов, коды возврата и флаг
-// --quiet — часть задания.
-//
-// Запуск:
-//   nano-edr <журнал.log>
+#include <algorithm>
+#include <array>
+#include <cctype>
 #include <cstdio>
 #include <fstream>
 #include <print>
 #include <string>
+#include <string_view>
+#include <unordered_map>
+
+static constexpr std::array<std::string_view, 4> SIGNATURES = {
+    "wscript.exe",
+    ".locked",
+    "certutil.exe",
+    "\\startup\\"
+};
 
 int main(int argc, char** argv) {
-    // Аргументы разбираются грубо: путь к журналу и ничего больше. Остальное,
-    // включая --quiet, добавляется по заданию.
     if (argc < 2) {
-        std::print(stderr, "использование: nano-edr <журнал.log>\n");
+        std::print(stderr, "использование: nano-edr <журнал.log> [--quiet]\n");
         return 2;
     }
 
+    bool quiet = false;
+
+    for (int i = 2; i < argc; ++i) {
+        if (std::string_view(argv[i]) == "--quiet") {
+            quiet = true;
+        } else {
+            std::print(stderr, "неизвестный аргумент: {}\n", argv[i]);
+            return 2;
+        }
+    }
+
     std::ifstream log(argv[1]);
+
     if (!log) {
         std::print(stderr, "не удалось открыть журнал: {}\n", argv[1]);
         return 2;
     }
 
-    long long lines = 0;
-    long long comments = 0;
+    std::size_t lines = 0;
+    std::size_t comments = 0;
+    std::size_t events = 0;
+
+    std::unordered_map<std::string, std::size_t> events_by_type;
+
     std::string line;
 
     while (std::getline(log, line)) {
-        // Счётчик увеличивается до всех проверок: он считает строки файла,
-        // а не события. Номер, посчитанный по событиям, бесполезен — по нему
-        // нельзя открыть файл и посмотреть.
         ++lines;
 
-        // Строки-комментарии в журнале начинаются с '#'. Они не события,
-        // и детекта по ним быть не должно.
-        if (!line.empty() && line[0] == '#') {
+        if (line.empty()) {
+            continue;
+        }
+
+        const auto first_char = line.find_first_not_of(" \t");
+
+        if (first_char == std::string::npos) {
+            continue;
+        }
+
+        if (line[first_char] == '#' || line[first_char] == ';') {
             ++comments;
             continue;
         }
 
-        // >>> Здесь начинается занятие 1.1.
-        //
-        // Проверка признаков и печать детекта. Номер строки, который нужен
-        // в выводе, — это lines.
+        if (!line.starts_with("ts=")) {
+            continue;
+        }
+
+        const auto type_pos = line.find(" type=");
+
+        if (type_pos == std::string::npos) {
+            continue;
+        }
+
+        const auto type_begin = type_pos + 6;
+        const auto type_end = line.find_first_of(" \t", type_begin);
+
+        const std::string type =
+            line.substr(type_begin, type_end - type_begin);
+
+        if (type.empty()) {
+            continue;
+        }
+
+        ++events;
+        ++events_by_type[type];
+
+        std::string lower_line = line;
+
+        std::transform(
+            lower_line.begin(),
+            lower_line.end(),
+            lower_line.begin(),
+            [](unsigned char ch) {
+                return static_cast<char>(std::tolower(ch));
+            }
+        );
+
+        for (const auto signature : SIGNATURES) {
+            if (lower_line.find(signature) != std::string::npos) {
+                std::print(
+                    "[DETECT] строка {}, признак {}: {}\n",
+                    lines,
+                    signature,
+                    line
+                );
+            }
+        }
     }
 
-    std::print("строк {}, из них комментариев {}\n", lines, comments);
+    if (!quiet) {
+        std::print("--------------------------------------------\n");
+        std::print(
+            "Строк: {}. Из них комментариев: {}\n",
+            lines,
+            comments
+        );
+        std::print("Всего событий: {}\n", events);
+
+        for (const auto& [type, count] : events_by_type) {
+            std::print("{}: {}\n", type, count);
+        }
+    }
+
     return 0;
 }
