@@ -1,8 +1,10 @@
+#include <charconv>
 #include <cstdio>
 #include <fstream>
 #include <map>
 #include <print>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "event_list.h"
@@ -12,25 +14,22 @@ static const std::vector<std::string> SIGNATURES = {
     "wscript.exe",
     ".locked",
     "certutil.exe",
-    "\\Startup\\"
-};
+    "\\Startup\\"};
 
 namespace {
-    struct Options {
-        std::string logPath;
-        bool quiet = false;
-        std::size_t windowSize = 64;
-    };
-}
+struct Options {
+    std::string logPath;
+    bool quiet = false;
+    std::size_t windowSize = 64;
+};
+}  // namespace
 
-static bool ParseOptions(const int argc, char **argv, Options *out) {
+static bool ParseOptions(const int argc, char** argv, Options* out) {
     if (!out || argc < 2)
         return false;
 
     Options options;
-    options.logPath = argv[1];
-
-    for (int i = 2; i < argc; ++i) {
+    for (int i = 1; i < argc; ++i) {
         const std::string_view arg = argv[i];
 
         if (arg == "--quiet") {
@@ -44,60 +43,52 @@ static bool ParseOptions(const int argc, char **argv, Options *out) {
             const auto [end, error] = std::from_chars(
                 value.data(),
                 value.data() + value.size(),
-                options.windowSize
-            );
+                options.windowSize);
 
             if (error != std::errc{} ||
                 end != value.data() + value.size()) {
                 return false;
             }
+        } else if (!arg.empty() && arg.front() != '-' &&
+                   options.logPath.empty()) {
+            options.logPath = arg;
         } else {
             return false;
         }
     }
 
+    if (options.logPath.empty())
+        return false;
+
     *out = std::move(options);
     return true;
 }
 
-static void PrintContext(const nano_edr::EventList *list) {
-    if (!list)
+static void PrintContext(const nano_edr::EventNode* first) {
+    if (!first)
         return;
 
-    const nano_edr::EventNode *prev = nullptr;
-    const nano_edr::EventNode *last = nullptr;
-
-    for (const auto *node = list->head; node; node = node->next) {
-        prev = last;
-        last = node;
-    }
-
-    if (prev) {
+    if (first->next) {
         std::print(
             "[CTX] -2: ts={} type={} pid={}\n",
-            prev->event.ts,
-            prev->event.type,
-            prev->event.pid
-        );
+            first->event.ts,
+            first->event.type,
+            first->event.pid);
+        first = first->next;
     }
-    if (last) {
-        std::print(
-            "[CTX] -1: ts={} type={} pid={}\n",
-            last->event.ts,
-            last->event.type,
-            last->event.pid
-        );
-    }
+    std::print(
+        "[CTX] -1: ts={} type={} pid={}\n",
+        first->event.ts,
+        first->event.type,
+        first->event.pid);
 }
-int main(int argc, char** argv)
-{
+int main(int argc, char** argv) {
     Options options;
     if (!ParseOptions(argc, argv, &options)) {
         std::print(
             stderr,
-            "использование: nano-edr <журнал.log> "
-            "[--quiet] [--window-size N]\n"
-        );
+            "использование: nano-edr [--quiet] [--window-size N] "
+            "<журнал.log>\n");
         return 2;
     }
 
@@ -106,13 +97,13 @@ int main(int argc, char** argv)
         std::print(
             stderr,
             "не удалось открыть журнал: {}\n",
-            options.logPath
-        );
+            options.logPath);
         return 2;
     }
 
     nano_edr::EventList window;
     window.capacity = options.windowSize;
+    const nano_edr::EventNode* context = nullptr;
 
     std::size_t lines = 0;
     std::size_t comments = 0;
@@ -124,13 +115,8 @@ int main(int argc, char** argv)
     while (std::getline(log, line)) {
         ++lines;
 
-        if (nano_edr::IsBlankOrComment(&line)) {
-            const auto pos = line.find_first_not_of(" \t\r\n\v\f");
-            if (pos != std::string::npos &&
-                (line[pos] == '#' || line[pos] == ';')) {
-                ++comments;
-            }
-
+        if (nano_edr::IsBlankOrComment(&line) && !options.quiet) {
+            ++comments;
             continue;
         }
 
@@ -138,41 +124,36 @@ int main(int argc, char** argv)
         if (!nano_edr::ParseEventLine(&line, &event))
             continue;
 
-        ++events;
-        ++events_by_type[event.type];
+        if (!options.quiet) {
+            ++events;
+            ++events_by_type[event.type];
+        }
 
+        bool detected = false;
         for (const auto& signature : SIGNATURES) {
             if (line.find(signature) != std::string::npos) {
+                detected = true;
                 std::print(
                     "[DETECT] строка {}, признак {}: {}\n",
                     lines,
                     signature,
-                    line
-                );
-                if (!options.quiet)
-                    PrintContext(&window);
+                    line);
             }
         }
+        if (detected && !options.quiet)
+            PrintContext(context);
 
+        context = window.capacity == 1 ? nullptr : window.tail;
         nano_edr::ListPushBack(&window, &event);
+        if (!context)
+            context = window.head;
     }
-
-    if (log.bad() || (log.fail() && !log.eof())) {
-        std::print(
-            stderr,
-            "ошибка чтения журнала: {}\n",
-            options.logPath
-        );
-        return 2;
-    }
-
     if (!options.quiet) {
         std::print("--------------------------------------------\n");
         std::print(
             "Строк: {}. Из них комментариев: {}\n",
             lines,
-            comments
-        );
+            comments);
         std::print("Всего событий: {}\n", events);
 
         for (const auto& [type, count] : events_by_type)
