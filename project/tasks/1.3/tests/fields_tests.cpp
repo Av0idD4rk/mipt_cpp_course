@@ -240,7 +240,8 @@ TEST_CASE("NormalizePath опускает регистр и приводит р�
 
 TEST_CASE("NormalizePath раскрывает %TEMP%") {
     // Настоящего окружения у журнала нет, поэтому раскрытие каноническое:
-    // важно, чтобы %TEMP%\a.js и полный путь до Temp оказались одним каталогом.
+    // важно не совпадение путей целиком, а общий кусок \appdata\local\temp\ —
+    // по нему правило и узнаёт временный каталог.
     const std::string expanded = NormalizePath("%TEMP%\\a.js");
     const std::string full =
         NormalizePath("C:\\Users\\max\\AppData\\Local\\Temp\\a.js");
