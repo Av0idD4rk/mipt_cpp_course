@@ -1,9 +1,7 @@
 name: C++ tests
 
 on:
-  push:
   pull_request:
-  workflow_dispatch:
 
 permissions:
   contents: read
@@ -20,7 +18,7 @@ jobs:
         working-directory: project
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Install build tools
         run: |
