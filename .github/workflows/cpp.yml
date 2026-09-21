@@ -1,0 +1,37 @@
+name: C++ tests
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: lesson 1.2
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      NANO_EDR_LESSON: '1.2'
+    defaults:
+      run:
+        working-directory: project
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes g++-14 cmake make
+
+      - name: Configure
+        run: cmake --preset gcc -D NANO_EDR_LESSON="$NANO_EDR_LESSON"
+
+      - name: Build
+        run: cmake --build --preset gcc --parallel 2
+
+      - name: Run tests
+        run: ctest --preset gcc --output-on-failure --no-tests=error --timeout 120
