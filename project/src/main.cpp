@@ -7,8 +7,10 @@
 #include <string_view>
 #include <vector>
 
+#include "agent_rules.h"
 #include "event_list.h"
 #include "parse.h"
+#include "rules.h"
 
 static const std::vector<std::string> SIGNATURES = {
     "wscript.exe",
@@ -129,24 +131,15 @@ int main(int argc, char** argv) {
             ++events_by_type[event.type];
         }
 
-        bool detected = false;
-        for (const auto& signature : SIGNATURES) {
-            if (line.find(signature) != std::string::npos) {
-                detected = true;
-                std::print(
-                    "[DETECT] строка {}, признак {}: {}\n",
-                    lines,
-                    signature,
-                    line);
-            }
+        if (nano_edr::CheckRules(event, nano_edr::AgentRules(), nano_edr::AgentRuleCount())) {
+            if (!options.quiet)
+                PrintContext(context);
         }
-        if (detected && !options.quiet)
-            PrintContext(context);
 
-        context = window.capacity == 1 ? nullptr : window.tail;
         nano_edr::ListPushBack(&window, &event);
-        if (!context)
-            context = window.head;
+        if (window.size <= 2) context = window.head;
+        else context = context->next;
+
     }
     if (!options.quiet) {
         std::print("--------------------------------------------\n");
