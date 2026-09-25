@@ -12,12 +12,6 @@
 #include "parse.h"
 #include "rules.h"
 
-static const std::vector<std::string> SIGNATURES = {
-    "wscript.exe",
-    ".locked",
-    "certutil.exe",
-    "\\Startup\\"};
-
 namespace {
 struct Options {
     std::string logPath;
@@ -137,9 +131,10 @@ int main(int argc, char** argv) {
         }
 
         nano_edr::ListPushBack(&window, &event);
-        if (window.size <= 2) context = window.head;
-        else context = context->next;
-
+        if (window.size <= 2)
+            context = window.head;
+        else
+            context = context->next;
     }
     if (!options.quiet) {
         std::print("--------------------------------------------\n");

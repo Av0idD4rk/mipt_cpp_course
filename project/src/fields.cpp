@@ -1,5 +1,5 @@
 #include "fields.h"
-
+#include <string_view>
 #include <charconv>
 #include <stdexcept>
 
@@ -85,7 +85,7 @@ bool CommandLineContains(const Event& event, const std::string& needle) {
 std::string NormalizePath(const std::string& path) {
     std::string normalized = ToLower(path);
 
-    const std::string replacement = R"(\appdata\local\temp)";
+    static constexpr std::string_view replacement = R"(\appdata\local\temp)";
 
     auto replace_all = [&](const std::string& token) {
         std::size_t pos = 0;
