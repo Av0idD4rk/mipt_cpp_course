@@ -1,14 +1,15 @@
 #include "fields.h"
-#include <string_view>
+
 #include <charconv>
 #include <stdexcept>
+#include <string_view>
 
 namespace nano_edr {
 static std::string ToLower(std::string text) {
     for (char& ch : text) {
-        ch = static_cast<char>(
-            std::tolower(static_cast<unsigned char>(ch))
-        );
+        if (ch >= 'A' && ch <= 'Z') {
+            ch = static_cast<char>(ch + ('a' - 'A'));
+        }
     }
     return text;
 }
@@ -41,7 +42,7 @@ bool GetIntField(const Event& event, const std::string& key, uint64_t* out) {
     if (err != std::errc() || ptr != end) {
         return false;
     }
-    * out = parsed;
+    *out = parsed;
     return true;
 }
 
@@ -80,10 +81,25 @@ bool CommandLineContains(const Event& event, const std::string& needle) {
     return false;
 }
 
-
-
 std::string NormalizePath(const std::string& path) {
-    std::string normalized = ToLower(path);
+    std::string normalized;
+
+    bool last = false;
+    for (const char ch : path) {
+        if (ch == '/' || ch == '\\') {
+            if (!last) {
+                normalized.push_back('\\');
+            }
+            last = true;
+        } else {
+            if (ch >= 'A' && ch <= 'Z') {
+                normalized.push_back(static_cast<char>(ch + ('a' - 'A')));
+            } else {
+                normalized.push_back(ch);
+            }
+            last = false;
+        }
+    }
 
     static constexpr std::string_view replacement = R"(\appdata\local\temp)";
 
@@ -99,21 +115,6 @@ std::string NormalizePath(const std::string& path) {
     replace_all("%temp%");
     replace_all("%tmp%");
 
-    std::string result;
-    result.reserve(normalized.size());
-
-    for (char ch : normalized) {
-        if (ch == '/') {
-            ch = '\\';
-        }
-
-        if (ch == '\\' && !result.empty() && result.back() == '\\') {
-            continue;
-        }
-
-        result.push_back(ch);
-    }
-
-    return result;
+    return normalized;
 }
 }  // namespace nano_edr
