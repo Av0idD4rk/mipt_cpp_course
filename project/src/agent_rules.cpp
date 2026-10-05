@@ -5,7 +5,6 @@
 namespace nano_edr {
 
 namespace {
-
 bool ImageIs(const Event& event, const std::string& name) {
     const std::string path =
         NormalizePath(GetRequiredField(event, "image"));
@@ -18,10 +17,7 @@ bool IsFileChange(const Event& event) {
            IsFileWrite(event) ||
            event.type == "file_move";
 }
-
-}  // namespace
-
-static bool ScriptHostFromTemp(const Event& event) {
+bool ScriptHostFromTemp(const Event& event) {
     if (!IsProcessStart(event) ||
         !(ImageIs(event, "wscript.exe") ||
           ImageIs(event, "cscript.exe"))) {
@@ -37,7 +33,7 @@ static bool ScriptHostFromTemp(const Event& event) {
     return normalized.contains(R"(\appdata\local\temp\)") ||
            normalized.contains(R"(\windows\temp\)");
 }
-static bool LolbinDownload(const Event& event) {
+bool LolbinDownload(const Event& event) {
     return IsProcessStart(event) &&
            (ImageIs(event, "certutil.exe") ||
             ImageIs(event, "bitsadmin.exe")) &&
@@ -46,7 +42,7 @@ static bool LolbinDownload(const Event& event) {
             CommandLineContains(event, "http:") ||
             CommandLineContains(event, "https:"));
 }
-static bool HiddenPowershell(const Event& event) {
+bool HiddenPowershell(const Event& event) {
     return IsProcessStart(event) &&
            (ImageIs(event, "powershell.exe") ||
             ImageIs(event, "pwsh.exe")) &&
@@ -55,7 +51,7 @@ static bool HiddenPowershell(const Event& event) {
             CommandLineContains(event, "-enc") ||
             CommandLineContains(event, "-encodedcommand"));
 }
-static bool AutostartWrite(const Event& event) {
+bool AutostartWrite(const Event& event) {
     if (!IsFileChange(event)) {
         return false;
     }
@@ -66,8 +62,7 @@ static bool AutostartWrite(const Event& event) {
     return path && NormalizePath(*path).contains(
                        R"(\start menu\programs\startup\)");
 }
-
-static bool RansomExtension(const Event& event) {
+bool RansomExtension(const Event& event) {
     if (!IsFileChange(event)) {
         return false;
     }
@@ -79,6 +74,7 @@ static bool RansomExtension(const Event& event) {
 
     return PathEndsWith(event, ".locked");
 }
+}  // namespace
 
 constexpr Rule kRules[] = {
     {.id = "script_host_from_temp", .check = ScriptHostFromTemp, .severity = Severity::kHigh},
