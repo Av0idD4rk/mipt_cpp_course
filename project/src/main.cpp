@@ -1,21 +1,19 @@
 #include <charconv>
 #include <cstdio>
-#include <fstream>
-#include <map>
+#include <exception>
 #include <print>
 #include <string>
 #include <string_view>
-#include <vector>
 
-#include "agent_rules.h"
-#include "event_list.h"
-#include "parse.h"
-#include "rules.h"
+#include "agent.h"
+#include "file_source.h"
+#include "os_source.h"
 
 namespace {
 struct Options {
-    std::string logPath;
+    std::string path;
     bool quiet = false;
+    bool file = false;
     std::size_t windowSize = 64;
 };
 }  // namespace
@@ -45,107 +43,65 @@ static bool ParseOptions(const int argc, char** argv, Options* out) {
                 end != value.data() + value.size()) {
                 return false;
             }
+        } else if (arg == "--file") {
+            if (i + 1 >= argc || !options.path.empty())
+                return false;
+
+            const std::string_view path = argv[++i];
+            if (path.empty() || path.front() == '-')
+                return false;
+
+            options.path = path;
+            options.file = true;
+
         } else if (!arg.empty() && arg.front() != '-' &&
-                   options.logPath.empty()) {
-            options.logPath = arg;
+                   options.path.empty()) {
+            options.path = arg;
         } else {
             return false;
         }
     }
 
-    if (options.logPath.empty())
+    if (options.path.empty())
         return false;
 
     *out = std::move(options);
     return true;
 }
 
-static void PrintContext(const nano_edr::EventNode* first) {
-    if (!first)
-        return;
-
-    if (first->next) {
-        std::print(
-            "[CTX] -2: ts={} type={} pid={}\n",
-            first->event.ts,
-            first->event.type,
-            first->event.pid);
-        first = first->next;
-    }
-    std::print(
-        "[CTX] -1: ts={} type={} pid={}\n",
-        first->event.ts,
-        first->event.type,
-        first->event.pid);
-}
-int main(int argc, char** argv) {
+int main(const int argc, char** argv) {
     Options options;
     if (!ParseOptions(argc, argv, &options)) {
         std::print(
             stderr,
-            "использование: nano-edr [--quiet] [--window-size N] "
-            "<журнал.log>\n");
+            "Использование:\n"
+            "  nano-edr [опции] <журнал.log>          — события через os.h\n"
+            "  nano-edr [опции] --file <журнал.log>   — прямое чтение файла\n"
+            "\n"
+            "Опции:\n"
+            "  --quiet           выводить только детекты\n"
+            "  --window-size N   хранить последние N событий\n"
+            "                    по умолчанию 64; 0 — без ограничения\n"
+            "\n"
+            "Пример:\n"
+            "  nano-edr --quiet --file scenarios/phishing_macro.log\n");
         return 2;
     }
+    try {
+        Agent agent(options.windowSize, options.quiet);
 
-    std::ifstream log(options.logPath);
-    if (!log) {
-        std::print(
-            stderr,
-            "не удалось открыть журнал: {}\n",
-            options.logPath);
-        return 2;
-    }
-
-    nano_edr::EventList window;
-    window.capacity = options.windowSize;
-    const nano_edr::EventNode* context = nullptr;
-
-    std::size_t lines = 0;
-    std::size_t comments = 0;
-    std::size_t events = 0;
-    std::map<std::string, std::size_t> events_by_type;
-
-    std::string line;
-
-    while (std::getline(log, line)) {
-        ++lines;
-
-        if (nano_edr::IsBlankOrComment(&line) && !options.quiet) {
-            ++comments;
-            continue;
+        if (options.file) {
+            FileSource source(options.path);
+            source.Run(&agent);
+        } else {
+            OsSource source(options.path);
+            source.Run(&agent);
         }
 
-        nano_edr::Event event;
-        if (!nano_edr::ParseEventLine(&line, &event))
-            continue;
-
-        if (!options.quiet) {
-            ++events;
-            ++events_by_type[event.type];
-        }
-
-        if (nano_edr::CheckRules(event, nano_edr::AgentRules(), nano_edr::AgentRuleCount())) {
-            if (!options.quiet)
-                PrintContext(context);
-        }
-
-        nano_edr::ListPushBack(&window, &event);
-        if (window.size <= 2)
-            context = window.head;
-        else
-            context = context->next;
-    }
-    if (!options.quiet) {
-        std::print("--------------------------------------------\n");
-        std::print(
-            "Строк: {}. Из них комментариев: {}\n",
-            lines,
-            comments);
-        std::print("Всего событий: {}\n", events);
-
-        for (const auto& [type, count] : events_by_type)
-            std::print("{}: {}\n", type, count);
+        agent.PrintSummary();
+    } catch (const std::exception& error) {
+        std::print(stderr, "Ошибка: {}\n", error.what());
+        return 1;
     }
 
     return 0;
