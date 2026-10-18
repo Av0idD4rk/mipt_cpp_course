@@ -13,9 +13,9 @@ bool ImageIs(const Event& event, const std::string& name) {
 }
 
 bool IsFileChange(const Event& event) {
-    return event.type == "file_create" ||
+    return event.type() == "file_create" ||
            IsFileWrite(event) ||
-           event.type == "file_move";
+           event.type() == "file_move";
 }
 bool ScriptHostFromTemp(const Event& event) {
     if (!IsProcessStart(event) ||
@@ -57,7 +57,7 @@ bool AutostartWrite(const Event& event) {
     }
 
     const std::string* path = FindField(
-        event, event.type == "file_move" ? "to" : "path");
+        event, event.type() == "file_move" ? "to" : "path");
 
     return path && NormalizePath(*path).contains(
                        R"(\start menu\programs\startup\)");
@@ -67,7 +67,7 @@ bool RansomExtension(const Event& event) {
         return false;
     }
 
-    if (event.type == "file_move") {
+    if (event.type() == "file_move") {
         const std::string* to = FindField(event, "to");
         return to && NormalizePath(*to).ends_with(".locked");
     }

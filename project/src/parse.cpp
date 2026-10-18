@@ -3,26 +3,24 @@
 #include <string_view>
 
 namespace nano_edr {
-bool IsBlankOrComment(const std::string* line) {
-    if (!line)
-        return true;
-    for (const char c : *line) {
+bool IsBlankOrComment(const std::string& line) {
+    for (const char c : line) {
         if (!std::isspace(static_cast<unsigned char>(c)))
             return c == '#' || c == ';';
     }
     return true;
 }
 
-bool ParseEventLine(const std::string* line, Event* out) {
+bool ParseEventParts(const std::string& line, EventParts* out) {
     if (!out)
         return false;
 
-    *out = Event{};
+    *out = EventParts{};
 
     if (IsBlankOrComment(line))
         return false;
 
-    const std::string_view s = *line;
+    const std::string_view s = line;
     std::size_t i = 0;
     bool hasTs = false;
     bool hasType = false;
@@ -95,6 +93,6 @@ bool ParseEventLine(const std::string* line, Event* out) {
         *destination = s.substr(valueBegin, valueSize);
     }
 
-    return hasTs && hasType && !out->ts.empty() && !out->type.empty();
+    return true;
 }
 }  // namespace nano_edr

@@ -8,7 +8,7 @@ size_t CheckRules(const Event& event, const Rule* rules, size_t rule_count) {
         const auto& [id, check, severity] = rules[i];
         if (check(event)) {
             detected++;
-            std::print("[DETECT] {}  {}  ts={} pid={}\n", SeverityName(severity), id, event.ts, event.pid);
+            std::print("[DETECT] {}  {}  ts={} pid={}\n", SeverityName(severity), id, event.raw_ts(), event.pid());
         }
     }
     return detected;
