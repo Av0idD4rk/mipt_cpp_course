@@ -88,13 +88,13 @@ int main(const int argc, char** argv) {
         return 2;
     }
     try {
-        Agent agent(options.windowSize, options.quiet);
+        nano_edr::Agent agent(options.windowSize, options.quiet);
 
         if (options.file) {
-            FileSource source(options.path);
+            nano_edr::FileSource source(options.path);
             source.Run(&agent);
         } else {
-            OsSource source(options.path);
+            nano_edr::OsSource source(options.path);
             source.Run(&agent);
         }
 

@@ -20,10 +20,8 @@ void EventList::Clear() {
 void EventList::PushBack(const Event& event) {
     auto* node = new EventNode(event);
 
-    if (capacity_ != 0) {
-        while (size_ >= capacity_)
-            PopFront();
-    }
+    if (capacity_ != 0 && size_ == capacity_)
+        PopFront();
     if (tail_)
         tail_->next = node;
     else

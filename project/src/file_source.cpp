@@ -2,38 +2,39 @@
 
 #include <cstdio>
 #include <exception>
-#include <fstream>
 #include <print>
 #include <stdexcept>
 
 #include "agent.h"
 #include "parse.h"
 
-FileSource::FileSource(const std::string& path) : path_(path) {}
+namespace nano_edr {
 
-void FileSource::Run(Agent* agent) {
-    std::ifstream log(path_);
-
-    if (!log) {
+FileSource::FileSource(const std::string& path) : path_(path), log_(path) {
+    if (!log_) {
         throw std::runtime_error("Не удалось открыть журнал: " + path_);
     }
+}
 
+void FileSource::Run(Agent* agent) {
     std::string line;
 
-    while (std::getline(log, line)) {
-        nano_edr::EventParts parts;
-        if (!nano_edr::ParseEventParts(line, &parts))
-            continue;
-
+    while (std::getline(log_, line)) {
         try {
-            nano_edr::Event event(parts);
+            EventParts parts;
+            if (!ParseEventParts(line, &parts))
+                continue;
+
+            Event event(parts);
             agent->HandleEvent(event);
         } catch (const std::exception& e) {
             std::print(stderr, "Событие пропущено: {}\n", e.what());
         }
     }
-    if (log.bad()) {
+    if (log_.bad()) {
         throw std::runtime_error(
             "Ошибка чтения журнала: " + path_);
     }
 }
+
+}  // namespace nano_edr

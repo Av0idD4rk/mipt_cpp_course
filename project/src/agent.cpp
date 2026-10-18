@@ -1,17 +1,21 @@
 #include "agent.h"
 
+#include <cstdio>
+#include <exception>
 #include <print>
 
 #include "agent_rules.h"
 #include "rules.h"
 
+namespace nano_edr {
+
 Agent::Agent(const std::size_t window_size, const bool quiet) : window_(window_size), quiet_(quiet) {}
 
-void Agent::HandleEvent(const nano_edr::Event& event) {
-    const auto detected = nano_edr::CheckRules(
+void Agent::HandleEvent(const Event& event) {
+    const auto detected = CheckRules(
         event,
-        nano_edr::AgentRules(),
-        nano_edr::AgentRuleCount());
+        AgentRules(),
+        AgentRuleCount());
 
     if (detected != 0 && !quiet_)
         PrintContext(context_);
@@ -27,7 +31,7 @@ void Agent::HandleEvent(const nano_edr::Event& event) {
     ++events_by_type_[event.type()];
 }
 
-void Agent::PrintContext(const nano_edr::EventNode* first) {
+void Agent::PrintContext(const EventNode* first) {
     if (!first)
         return;
 
@@ -57,19 +61,24 @@ void Agent::PrintSummary() const {
 
 void Agent::Trampoline(const os_event* ev, void* ctx) noexcept {
     try {
-        nano_edr::EventParts parts;
+        EventParts parts;
         parts.type = ev->type;
         if (ev->pid != 0) {
             parts.pid = std::to_string(ev->pid);
         }
         parts.ts = std::to_string(ev->ts);
         for (size_t i = 0; i < ev->field_count; ++i) {
-            parts.fields.push_back(nano_edr::Field{.key = ev->fields[i].key, .value = ev->fields[i].value});
+            parts.fields.push_back(Field{.key = ev->fields[i].key, .value = ev->fields[i].value});
         }
 
-        const nano_edr::Event event(parts);
+        const Event event(parts);
         static_cast<Agent*>(ctx)->HandleEvent(event);
 
+    } catch (const std::exception& error) {
+        std::print(stderr, "Событие пропущено: {}\n", error.what());
     } catch (...) {
+        std::print(stderr, "Событие пропущено: неизвестное исключение\n");
     }
 }
+
+}  // namespace nano_edr

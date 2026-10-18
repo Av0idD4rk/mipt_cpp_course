@@ -5,6 +5,8 @@
 #include "agent.h"
 #include "os_handle.h"
 
+namespace nano_edr {
+
 OsSource::OsSource(const std::string& config_path) : handle_(config_path) {}
 
 void OsSource::Run(Agent* agent) {
@@ -19,3 +21,5 @@ void OsSource::Run(Agent* agent) {
         throw std::runtime_error("os_wait: " + std::string(os_status_str(status)));
     }
 }
+
+}  // namespace nano_edr
