@@ -1,7 +1,3 @@
-//
-// Created by avdk on 05.10.2026.
-//
-
 #ifndef NANO_EDR_AGENT_OS_SOURCE_H
 #define NANO_EDR_AGENT_OS_SOURCE_H
 #include <string>

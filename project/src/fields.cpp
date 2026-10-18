@@ -4,15 +4,9 @@
 #include <stdexcept>
 #include <string_view>
 
+#include "text.h"
+
 namespace nano_edr {
-static std::string ToLower(std::string text) {
-    for (char& ch : text) {
-        if (ch >= 'A' && ch <= 'Z') {
-            ch = static_cast<char>(ch + ('a' - 'A'));
-        }
-    }
-    return text;
-}
 const std::string* FindField(const Event& event, const std::string& key) {
     if (key == "ts") {
         return &event.raw_ts();
@@ -78,14 +72,14 @@ bool IsNetConnect(const Event& event) {
 
 bool PathEndsWith(const Event& event, const std::string& suffix) {
     if (const std::string* path = FindField(event, "path")) {
-        return ToLower(*path).ends_with(ToLower(suffix));
+        return EndsWithIgnoreCase(*path, suffix);
     }
     return false;
 }
 
 bool CommandLineContains(const Event& event, const std::string& needle) {
     if (const std::string* command = FindField(event, "cmdline")) {
-        return ToLower(*command).contains(ToLower(needle));
+        return ContainsIgnoreCase(*command, needle);
     }
     return false;
 }
