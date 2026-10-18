@@ -1,16 +1,14 @@
-//
-// Created by avdk on 05.10.2026.
-//
-
 #ifndef NANO_EDR_AGENT_AGENT_H
 #define NANO_EDR_AGENT_AGENT_H
 #include <cstddef>
 #include <map>
 #include <string>
+#include <vector>
 
 #include "event.h"
 #include "event_list.h"
 #include "os.h"
+#include "rule.h"
 
 namespace nano_edr {
 
@@ -26,6 +24,7 @@ class Agent {
     static void PrintContext(const EventNode* first);
 
     EventList window_;
+    std::vector<MatchRule> rules_;
     bool quiet_;
     std::size_t events_ = 0;
     std::map<std::string, std::size_t> events_by_type_;
