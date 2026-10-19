@@ -1,6 +1,7 @@
 #include <charconv>
 #include <cstdio>
 #include <exception>
+#include <memory>
 #include <print>
 #include <string>
 #include <string_view>
@@ -90,13 +91,13 @@ int main(const int argc, char** argv) {
     try {
         nano_edr::Agent agent(options.windowSize, options.quiet);
 
+        std::unique_ptr<nano_edr::IEventSource> source;
         if (options.file) {
-            nano_edr::FileSource source(options.path);
-            source.Run(&agent);
+            source = std::make_unique<nano_edr::FileSource>(options.path);
         } else {
-            nano_edr::OsSource source(options.path);
-            source.Run(&agent);
+            source = std::make_unique<nano_edr::OsSource>(options.path);
         }
+        source->Run(&agent);
 
         agent.PrintSummary();
     } catch (const std::exception& error) {
