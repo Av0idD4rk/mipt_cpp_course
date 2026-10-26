@@ -19,12 +19,12 @@ void FileSource::Run(IEventHandler* handler) {
     std::string line;
 
     while (std::getline(log_, line)) {
-        if (IsBlankOrComment(line)) {
-            handler->OnSkipped();
-            continue;
-        }
-
         try {
+            if (IsBlankOrComment(line)) {
+                handler->OnSkipped();
+                continue;
+            }
+        
             EventParts parts;
             if (!ParseEventParts(line, &parts)) {
                 handler->OnBroken();
