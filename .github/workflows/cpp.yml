@@ -8,11 +8,11 @@ permissions:
 
 jobs:
   test:
-    name: lesson 2.2
+    name: lesson 2.3
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     env:
-      NANO_EDR_LESSON: '2.2'
+      NANO_EDR_LESSON: '2.3'
     defaults:
       run:
         working-directory: project
