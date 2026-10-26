@@ -110,6 +110,36 @@ RuleEngine BuildAgentRules() {
     ransom->AddAction("quarantine_file");
     engine.AddRule(std::move(ransom));
 
+    auto beacon = std::make_unique<SequenceRule>(
+        "script_host_beacon", Severity::kCritical, 10000);
+
+    auto start = std::make_unique<AllOf>();
+    start->Add(std::make_unique<EventTypeIs>(
+        std::vector<EventType>{EventType::kProcessStart}));
+
+    auto beacon_images = std::make_unique<AnyOf>();
+    for (const char* image : {"wscript.exe", "cscript.exe"}) {
+        beacon_images->Add(
+            std::make_unique<FieldEndsWith>("image", image));
+    }
+    start->Add(std::move(beacon_images));
+
+    auto beacon_temp = std::make_unique<AnyOf>();
+    for (const char* path : {
+             R"(\appdata\local\temp\)", "/appdata/local/temp/",
+             R"(\windows\temp\)", "/windows/temp/",
+             "%temp%", "%tmp%"}) {
+        beacon_temp->Add(std::make_unique<FieldContains>("cmdline", path));
+    }
+    start->Add(std::move(beacon_temp));
+
+    beacon->SetFirst(std::move(start));
+    beacon->SetSecond(std::make_unique<EventTypeIs>(
+        std::vector<EventType>{EventType::kNetConnect}));
+    beacon->AddAction("kill_process");
+
+    engine.AddRule(std::move(beacon));
+
     return engine;
 }
 
