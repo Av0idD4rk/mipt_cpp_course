@@ -1,10 +1,10 @@
-#include <charconv>
 #include <cstdio>
 #include <exception>
 #include <memory>
 #include <print>
 #include <string>
 #include <string_view>
+#include <utility>
 
 #include "agent.h"
 #include "file_source.h"
@@ -15,7 +15,6 @@ struct Options {
     std::string path;
     bool quiet = false;
     bool file = false;
-    std::size_t windowSize = 64;
 };
 }  // namespace
 
@@ -29,21 +28,6 @@ static bool ParseOptions(const int argc, char** argv, Options* out) {
 
         if (arg == "--quiet") {
             options.quiet = true;
-        } else if (arg == "--window-size") {
-            if (i + 1 >= argc)
-                return false;
-
-            const std::string_view value = argv[++i];
-
-            const auto [end, error] = std::from_chars(
-                value.data(),
-                value.data() + value.size(),
-                options.windowSize);
-
-            if (error != std::errc{} ||
-                end != value.data() + value.size()) {
-                return false;
-            }
         } else if (arg == "--file") {
             if (i + 1 >= argc || !options.path.empty())
                 return false;
@@ -81,15 +65,13 @@ int main(const int argc, char** argv) {
             "\n"
             "Опции:\n"
             "  --quiet           выводить только детекты\n"
-            "  --window-size N   хранить последние N событий\n"
-            "                    по умолчанию 64; 0 — без ограничения\n"
             "\n"
             "Пример:\n"
             "  nano-edr --quiet --file scenarios/phishing_macro.log\n");
         return 2;
     }
     try {
-        nano_edr::Agent agent(options.windowSize, options.quiet);
+        nano_edr::Agent agent(options.quiet);
 
         std::unique_ptr<nano_edr::IEventSource> source;
         if (options.file) {
