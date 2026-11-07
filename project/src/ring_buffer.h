@@ -3,6 +3,7 @@
 
 #include <array>
 #include <cstddef>
+#include <utility>
 
 namespace nano_edr {
 
@@ -30,8 +31,8 @@ class RingBuffer {
         }
 
      private:
-        const RingBuffer* buffer_;
-        std::size_t index_;
+        const RingBuffer* buffer_ = nullptr;
+        std::size_t index_ = 0;
     };
 
     void PushBack(const T& value) {
@@ -44,6 +45,11 @@ class RingBuffer {
     }
 
     void Clear() {
+        for (std::size_t i = 0; i < size_; ++i) {
+            T empty{};
+            std::swap(data_[(head_ + i) % N], empty);
+        }
+
         head_ = 0;
         size_ = 0;
     }
@@ -65,7 +71,7 @@ class RingBuffer {
     Iterator end() const { return Iterator{this, size_}; }
 
  private:
-    std::array<T, N> data_{};
+    std::array<T, N> data_;
     std::size_t head_ = 0;
     std::size_t size_ = 0;
 };
