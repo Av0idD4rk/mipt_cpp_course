@@ -1,19 +1,22 @@
 #include "agent.h"
 
-#include <cstdio>
-#include <exception>
 #include <print>
+#include <vector>
 
 #include "agent_rules.h"
 #include "rules.h"
 
 namespace nano_edr {
 
-Agent::Agent(const std::size_t window_size, const bool quiet) : window_(window_size), rule_engine_(BuildAgentRules()), quiet_(quiet) {}
+Agent::Agent(const bool quiet) : rule_engine_(BuildAgentRules()), quiet_(quiet) {}
 
 void Agent::HandleEvent(const Event& event) {
     std::vector<const IRule*> fired;
     const auto detected = rule_engine_.ProcessEvent(event, &fired);
+
+    if (detected != 0 && !quiet_)
+        PrintContext();
+
     for (const auto* rule : fired) {
         std::print(
             "[DETECT] {}  {}  ts={} pid={}\n",
@@ -23,37 +26,35 @@ void Agent::HandleEvent(const Event& event) {
             event.pid());
     }
 
-    if (detected != 0 && !quiet_)
-        PrintContext(context_);
-
-    window_.PushBack(event);
-
-    if (window_.size() <= 2)
-        context_ = window_.head();
-    else
-        context_ = context_->next;
+    window_.PushBack(WindowEntry{
+        .ts = event.ts(),
+        .type = event.type(),
+        .pid = event.pid()
+    });
 
     ++events_;
     ++events_by_type_[event.type()];
 }
 
-void Agent::PrintContext(const EventNode* first) {
-    if (!first)
+void Agent::PrintContext() const {
+    if (window_.empty())
         return;
 
-    if (first->next) {
+    if (window_.size() >= 2) {
+        const auto& entry = window_[window_.size() - 2];
         std::print(
-            "[CTX] -2: ts={} type={} pid={}\n",
-            first->event.raw_ts(),
-            first->event.type(),
-            first->event.pid());
-        first = first->next;
+            "[CTX] -2: {} {} pid={}\n",
+            entry.ts.ms,
+            entry.type,
+            entry.pid);
     }
+
+    const auto& entry = window_.back();
     std::print(
-        "[CTX] -1: ts={} type={} pid={}\n",
-        first->event.raw_ts(),
-        first->event.type(),
-        first->event.pid());
+        "[CTX] -1: {} {} pid={}\n",
+        entry.ts.ms,
+        entry.type,
+        entry.pid);
 }
 
 void Agent::PrintSummary() const {

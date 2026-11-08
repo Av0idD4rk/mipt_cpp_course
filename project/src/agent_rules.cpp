@@ -1,5 +1,8 @@
 #include "agent_rules.h"
 
+#include "combinators.h"
+#include "make_rule.h"
+
 #include <initializer_list>
 #include <memory>
 #include <utility>
@@ -139,6 +142,20 @@ RuleEngine BuildAgentRules() {
     beacon->AddAction("kill_process");
 
     engine.AddRule(std::move(beacon));
+
+    auto mass_write = MakeRule<ThresholdRule<128>>(
+        "ransomware_mass_write", Severity::kCritical,
+        20, 10000, "pid");
+    mass_write->SetCondition(MakeCondition(AllOfStatic(
+        EventTypeIs({EventType::kFileCreate, EventType::kFileWrite,
+                     EventType::kFileMove}),
+        AnyOfStatic(FieldContains("path", R"(\Documents\)"),
+                    FieldContains("path", R"(\Desktop\)"),
+                    FieldContains("to", R"(\Documents\)"),
+                    FieldContains("to", R"(\Desktop\)")))));
+    mass_write->AddAction("kill_process");
+    mass_write->AddAction("quarantine_file");
+    engine.AddRule(std::move(mass_write));
 
     return engine;
 }
