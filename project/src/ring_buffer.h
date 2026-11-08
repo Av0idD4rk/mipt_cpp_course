@@ -47,7 +47,7 @@ class RingBuffer {
     void Clear() {
         for (std::size_t i = 0; i < size_; ++i) {
             T empty{};
-            std::swap(data_[(head_ + i) % N], empty);
+            std::swap(data_[i], empty);
         }
 
         head_ = 0;
